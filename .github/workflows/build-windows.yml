@@ -1,0 +1,61 @@
+name: Build Windows executable
+
+# Manual runs any time from the Actions tab, or automatically on a version tag
+# (git tag v1.0.0 && git push --tags).
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # the default GITHUB_TOKEN is read-only; release creation needs this
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Tkinter is available
+        run: python -c "import tkinter; print('tkinter OK')"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build HandloaderBench.exe
+        run: pyinstaller reloading-bench.spec
+
+      - name: Self-sign the executable
+        shell: pwsh
+        run: |
+          # Self-signed: makes the file tamper-evident (proves it wasn't
+          # modified after this build signed it) but does NOT clear Windows
+          # SmartScreen's "unknown publisher" warning -- that requires a
+          # certificate from a CA Windows already trusts. This cert is
+          # regenerated fresh every run, so it has no identity across
+          # releases; see the repo README if you want a stable identity
+          # instead (a cert generated once and stored as a repo secret).
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigning `
+            -Subject "CN=Handloader Bench (self-signed, unverified publisher)" `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -NotAfter (Get-Date).AddYears(5)
+          Set-AuthenticodeSignature -FilePath dist\HandloaderBench.exe -Certificate $cert
+          Get-AuthenticodeSignature dist\HandloaderBench.exe | Format-List
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HandloaderBench-windows
+          path: dist/HandloaderBench.exe
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/HandloaderBench.exe --generate-notes --title "${{ github.ref_name }}"

@@ -1,0 +1,2 @@
+py_ballisticcalc==2.3.1
+matplotlib==3.11.1

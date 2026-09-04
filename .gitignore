@@ -1,0 +1,28 @@
+# Personal data -- never ship a real reloading log in the built exe
+handloads/handloads.db
+*.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Linux-dev vendored deps (ballistics/vendor) -- Windows CI does a normal pip install instead
+ballistics/vendor/
+ballistics/.mplcache/
+
+# PyInstaller build output
+build/
+dist/
+*.spec.bak
+
+# Exports
+*.csv
+
+# Claude Code harness bookkeeping (per-project state, not project content)
+.claude/
+.mcp.json
+
+# One-off personal data import scripts (kept locally only, never public --
+# see /home/cody/projects/scratch/personal-archive/ if you need them again)
+handloads/import_paste_*.py
+handloads/apply_verbatim_comments.py
